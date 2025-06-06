@@ -56,7 +56,7 @@ function Website() {
 // 浏览器扩展组件 - 包含所有高亮功能
 function Extension() {
   const [isActive, setIsActive] = useState(true)
-  const [highlights, setHighlights] = useState<Array<{ id: string; text: string; element: HTMLElement }>>([])
+  const [highlights, setHighlights] = useState<Array<{ id: string; text: string; element: HTMLElement; segments?: HTMLElement[] }>>([])
   const [highlightColor, setHighlightColor] = useState('#fff3cd')
 
   // 监听网页内容的文本选择
@@ -90,65 +90,121 @@ function Extension() {
   }, [isActive, highlightColor])
 
   const createHighlight = (range: Range, text: string) => {
-    try {
-      // 创建高亮包裹元素
-      const span = document.createElement('span')
-      span.style.backgroundColor = highlightColor
-      span.style.border = '1px solid #ffeaa7'
-      span.style.borderRadius = '2px'
-      span.className = 'web-highlighter-mark'
-      span.setAttribute('data-highlighter', 'true')
-      
-      // 包裹选中的文本
-      range.surroundContents(span)
-      
-      // 记录高亮信息
-      const highlightId = `highlight_${Date.now()}`
-      span.setAttribute('data-highlight-id', highlightId)
-      
-      setHighlights(prev => [...prev, {
-        id: highlightId,
-        text: text,
-        element: span
-      }])
-      
-    } catch (error) {
-      // 处理复杂选择（跨多个元素）
-      console.log('复杂选择区域，需要更高级的包裹策略')
-      
-      // 简化处理：创建新的包裹元素
-      const span = document.createElement('span')
-      span.style.backgroundColor = highlightColor
-      span.style.border = '1px solid #ffeaa7'
-      span.style.borderRadius = '2px'
-      span.className = 'web-highlighter-mark'
-      span.setAttribute('data-highlighter', 'true')
-      span.textContent = range.toString()
-      
-      range.deleteContents()
-      range.insertNode(span)
-      
-      const highlightId = `highlight_${Date.now()}`
-      span.setAttribute('data-highlight-id', highlightId)
-      
-      setHighlights(prev => [...prev, {
-        id: highlightId,
-        text: range.toString(),
-        element: span
-      }])
+    // 检查是否跨元素选择
+    if (range.startContainer === range.endContainer) {
+      // 单元素选择，直接处理
+      createSingleElementHighlight(range, text)
+    } else {
+      // 跨元素选择，分段处理
+      createSegmentedHighlight(range, text)
     }
+  }
+
+  const createSingleElementHighlight = (range: Range, text: string) => {
+    const span = document.createElement('span')
+    span.style.backgroundColor = highlightColor
+    span.style.border = '1px solid #ffeaa7'
+    span.style.borderRadius = '2px'
+    span.className = 'web-highlighter-mark'
+    span.setAttribute('data-highlighter', 'true')
+    
+    range.surroundContents(span)
+    
+    const highlightId = `highlight_${Date.now()}`
+    span.setAttribute('data-highlight-id', highlightId)
+    
+    setHighlights(prev => [...prev, {
+      id: highlightId,
+      text: text,
+      element: span
+    }])
+  }
+
+  const createSegmentedHighlight = (range: Range, text: string) => {
+    const highlightId = `highlight_${Date.now()}`
+    const segments: HTMLElement[] = []
+    
+    // 收集范围内的所有文本节点
+    const walker = document.createTreeWalker(
+      range.commonAncestorContainer,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+        }
+      }
+    )
+    
+    const textNodes: Text[] = []
+    let currentNode = walker.nextNode() as Text
+    while (currentNode) {
+      textNodes.push(currentNode)
+      currentNode = walker.nextNode() as Text
+    }
+    
+    // 为每个文本节点片段创建高亮
+    textNodes.forEach((textNode, index) => {
+      let startOffset = 0
+      let endOffset = textNode.textContent?.length || 0
+      
+      // 调整起始和结束偏移
+      if (textNode === range.startContainer) {
+        startOffset = range.startOffset
+      }
+      if (textNode === range.endContainer) {
+        endOffset = range.endOffset
+      }
+      
+      // 创建当前片段的范围
+      if (startOffset < endOffset) {
+        const segmentRange = document.createRange()
+        segmentRange.setStart(textNode, startOffset)
+        segmentRange.setEnd(textNode, endOffset)
+        
+        const span = document.createElement('span')
+        span.style.backgroundColor = highlightColor
+        span.style.border = '1px solid #ffeaa7'
+        span.style.borderRadius = '2px'
+        span.className = 'web-highlighter-mark'
+        span.setAttribute('data-highlighter', 'true')
+        span.setAttribute('data-highlight-id', `${highlightId}_${index}`)
+        span.setAttribute('data-highlight-group', highlightId)
+        
+        segmentRange.surroundContents(span)
+        segments.push(span)
+      }
+    })
+    
+    // 将分段高亮作为一个组来管理
+    setHighlights(prev => [...prev, {
+      id: highlightId,
+      text: text,
+      element: segments[0], // 主要元素用于兼容现有逻辑
+      segments: segments    // 所有片段
+    }])
   }
 
   const removeHighlight = (id: string) => {
     const highlight = highlights.find(h => h.id === id)
     if (!highlight) return
 
-    const element = highlight.element
-    const parent = element.parentNode
-    if (parent) {
-      // 将文本内容还原，移除包裹元素
-      parent.insertBefore(document.createTextNode(element.textContent || ''), element)
-      parent.removeChild(element)
+    // 处理分段高亮
+    if (highlight.segments && highlight.segments.length > 0) {
+      highlight.segments.forEach(segment => {
+        const parent = segment.parentNode
+        if (parent) {
+          parent.insertBefore(document.createTextNode(segment.textContent || ''), segment)
+          parent.removeChild(segment)
+        }
+      })
+    } else {
+      // 处理单个高亮
+      const element = highlight.element
+      const parent = element.parentNode
+      if (parent) {
+        parent.insertBefore(document.createTextNode(element.textContent || ''), element)
+        parent.removeChild(element)
+      }
     }
     
     setHighlights(prev => prev.filter(h => h.id !== id))
