@@ -33,7 +33,6 @@ export function Extension() {
 
       const range = selection.getRangeAt(0)
       const selectedText = range.toString().trim()
-      
       if (selectedText) {
         createHighlight(range, selectedText)
         selection.removeAllRanges()

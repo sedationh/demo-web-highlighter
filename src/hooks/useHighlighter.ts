@@ -28,19 +28,19 @@ export const useHighlighter = () => {
         console.log(`恢复第 ${index + 1} 个高亮:`, data)
         const startNode = getTextNodeByPath(data.startPath, websiteContent)
         const endNode = getTextNodeByPath(data.endPath, websiteContent)
-        
+
         console.log('起始节点:', startNode, '结束节点:', endNode)
-        
+
         if (startNode && endNode) {
           const range = document.createRange()
           range.setStart(startNode, data.startOffset)
           range.setEnd(endNode, data.endOffset)
-          
+
           console.log('创建的 range:', range.toString())
-          
+
           // 重建高亮
           createHighlightFromRange(range, data.text, data.color, data.id, true, restoredHighlights)
-          
+
           console.log(`高亮 ${data.id} 恢复成功`)
         } else {
           console.warn(`高亮 ${data.id} 恢复失败: 找不到文本节点`)
@@ -66,40 +66,43 @@ export const useHighlighter = () => {
     }
 
     const highlightId = generateHighlightId()
-    
-    const websiteContent = document.getElementById('website-content')
-    if (websiteContent) {
-      const originalData: HighlightData = {
-        id: highlightId,
-        text: text,
-        color: highlightColor,
-        timestamp: Date.now(),
-        selector: '#website-content',
-        startPath: getTextNodePath(range.startContainer, websiteContent),
-        startOffset: range.startOffset,
-        endPath: getTextNodePath(range.endContainer, websiteContent),
-        endOffset: range.endOffset,
-        isSegmented: range.startContainer !== range.endContainer
-      }
-      
-      console.log('保存原始选择位置:', originalData)
-      
-      createHighlightFromRange(range, text, highlightColor, highlightId)
-      
-      setTimeout(() => {
-        const stored = loadHighlightsFromStorage()
-        const updatedData = [...stored, originalData]
-        saveHighlightsToStorage(updatedData)
-      }, 100)
+
+    const containerSelector = '#website-content'
+    const containerDom = document.querySelector(containerSelector)
+    if (!containerDom) {
+      console.error('containerDom is not found', containerSelector)
+      return
     }
+
+    const originalData: HighlightData = {
+      id: highlightId,
+      text: text,
+      color: highlightColor,
+      timestamp: Date.now(),
+      selector: containerSelector,
+      startPath: getTextNodePath(range.startContainer, containerDom),
+      startOffset: range.startOffset,
+      endPath: getTextNodePath(range.endContainer, containerDom),
+      endOffset: range.endOffset,
+      isSegmented: range.startContainer !== range.endContainer
+    }
+
+    console.log('保存原始选择位置:', originalData)
+
+    createHighlightFromRange(range, text, highlightColor, highlightId)
+
+    const stored = loadHighlightsFromStorage()
+    const updatedData = [...stored, originalData]
+    saveHighlightsToStorage(updatedData)
+
   }, [highlightColor])
 
   // 从 Range 创建高亮（支持持久化恢复）
   const createHighlightFromRange = useCallback((
-    range: Range, 
-    text: string, 
-    color: string, 
-    id: string, 
+    range: Range,
+    text: string,
+    color: string,
+    id: string,
     isRestoringMode: boolean = false,
     restoredHighlights?: HighlightState[]
   ) => {
@@ -112,16 +115,16 @@ export const useHighlighter = () => {
 
   // 创建单元素高亮
   const createSingleElementHighlight = useCallback((
-    range: Range, 
-    text: string, 
-    color: string, 
-    id: string, 
+    range: Range,
+    text: string,
+    color: string,
+    id: string,
     isRestoringMode: boolean = false,
     restoredHighlights?: HighlightState[]
   ) => {
     const span = createHighlightElement(color, id)
     range.surroundContents(span)
-    
+
     const newHighlight: HighlightState = {
       id: id,
       text: text,
@@ -137,54 +140,54 @@ export const useHighlighter = () => {
 
   // 创建分段高亮
   const createSegmentedHighlight = useCallback((
-    range: Range, 
-    text: string, 
-    color: string, 
-    id: string, 
+    range: Range,
+    text: string,
+    color: string,
+    id: string,
     isRestoringMode: boolean = false,
     restoredHighlights?: HighlightState[]
   ) => {
     const segments: HTMLElement[] = []
-    
+
     const walker = document.createTreeWalker(
       range.commonAncestorContainer,
       NodeFilter.SHOW_TEXT,
       {
-        acceptNode: function(node) {
+        acceptNode: function (node) {
           return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
         }
       }
     )
-    
+
     const textNodes: Text[] = []
     let currentNode = walker.nextNode() as Text
     while (currentNode) {
       textNodes.push(currentNode)
       currentNode = walker.nextNode() as Text
     }
-    
+
     textNodes.forEach((textNode, index) => {
       let startOffset = 0
       let endOffset = textNode.textContent?.length || 0
-      
+
       if (textNode === range.startContainer) {
         startOffset = range.startOffset
       }
       if (textNode === range.endContainer) {
         endOffset = range.endOffset
       }
-      
+
       if (startOffset < endOffset) {
         const segmentRange = document.createRange()
         segmentRange.setStart(textNode, startOffset)
         segmentRange.setEnd(textNode, endOffset)
-        
+
         const span = createHighlightElement(color, id, true, index)
         segmentRange.surroundContents(span)
         segments.push(span)
       }
     })
-    
+
     const newHighlight: HighlightState = {
       id: id,
       text: text,
@@ -211,9 +214,9 @@ export const useHighlighter = () => {
     } else {
       removeHighlightElement(highlight.element)
     }
-    
+
     setHighlights(prev => prev.filter(h => h.id !== id))
-    
+
     setTimeout(() => {
       const stored = loadHighlightsFromStorage()
       const filteredData = stored.filter(data => data.id !== id)
