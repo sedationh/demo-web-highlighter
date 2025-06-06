@@ -58,6 +58,7 @@ function Extension() {
   const [isActive, setIsActive] = useState(true)
   const [highlights, setHighlights] = useState<Array<{ id: string; text: string; element: HTMLElement; segments?: HTMLElement[] }>>([])
   const [highlightColor, setHighlightColor] = useState('#fff3cd')
+  const [conflictMessage, setConflictMessage] = useState('')
 
   // 监听网页内容的文本选择
   useEffect(() => {
@@ -90,6 +91,14 @@ function Extension() {
   }, [isActive, highlightColor])
 
   const createHighlight = (range: Range, text: string) => {
+    // 检查是否与现有高亮冲突
+    const conflictCheck = checkHighlightConflicts(range)
+    if (conflictCheck.hasConflict) {
+      setConflictMessage(conflictCheck.reason)
+      setTimeout(() => setConflictMessage(''), 3000) // 3秒后清除提示
+      return
+    }
+
     // 检查是否跨元素选择
     if (range.startContainer === range.endContainer) {
       // 单元素选择，直接处理
@@ -98,6 +107,41 @@ function Extension() {
       // 跨元素选择，分段处理
       createSegmentedHighlight(range, text)
     }
+  }
+
+  const checkHighlightConflicts = (range: Range) => {
+    // 检查选择范围内是否已包含高亮元素
+    const container = range.commonAncestorContainer instanceof Element 
+      ? range.commonAncestorContainer 
+      : range.commonAncestorContainer.parentElement || document
+    
+    const existingHighlights = container.querySelectorAll('[data-highlighter="true"]')
+    
+    for (const highlight of existingHighlights) {
+      // 检查是否在选择范围内
+      if (range.intersectsNode(highlight)) {
+        return {
+          hasConflict: true,
+          reason: '选择范围与现有高亮重叠',
+          conflictElement: highlight
+        }
+      }
+    }
+
+    // 检查选择范围是否完全在某个高亮内部
+    let currentNode = range.startContainer
+    while (currentNode && currentNode !== document.body) {
+      if (currentNode instanceof Element && currentNode.hasAttribute('data-highlighter')) {
+        return {
+          hasConflict: true,
+          reason: '选择范围在现有高亮内部',
+          conflictElement: currentNode
+        }
+      }
+      currentNode = currentNode.parentNode
+    }
+
+    return { hasConflict: false }
   }
 
   const createSingleElementHighlight = (range: Range, text: string) => {
@@ -274,6 +318,21 @@ function Extension() {
 
         {isActive && (
           <>
+            {/* 冲突提示 */}
+            {conflictMessage && (
+              <div style={{ 
+                marginBottom: '15px',
+                padding: '10px',
+                backgroundColor: '#f8d7da',
+                border: '1px solid #f5c6cb',
+                borderRadius: '4px',
+                color: '#721c24',
+                fontSize: '14px'
+              }}>
+                ⚠️ {conflictMessage}
+              </div>
+            )}
+
             {/* 高亮颜色选择 */}
             <div style={{ marginBottom: '20px' }}>
               <p><strong>高亮颜色：</strong></p>
@@ -377,9 +436,9 @@ function Extension() {
           <ul style={{ fontSize: '13px', lineHeight: '1.6', margin: '10px 0' }}>
             <li><strong>内容脚本注入</strong>：向网页注入事件监听器</li>
             <li><strong>DOM 操作</strong>：通过 Range API 包裹选中文本</li>
-            <li><strong>样式隔离</strong>：使用特定类名和属性标识</li>
+            <li><strong>分段高亮</strong>：跨元素选择时保持DOM结构</li>
+            <li><strong>冲突检测</strong>：防止嵌套高亮导致DOM破坏</li>
             <li><strong>状态管理</strong>：扩展内部维护高亮状态</li>
-            <li><strong>跨页面持久化</strong>：可存储到本地存储</li>
           </ul>
         </div>
       </div>
