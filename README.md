@@ -1,30 +1,78 @@
-# React + TypeScript + Vite
+# Web Highlighter Demo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web application built with React, TypeScript, and Vite, featuring a text highlighting functionality.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- [React](https://reactjs.org/) - A JavaScript library for building user interfaces
+- [TypeScript](https://www.typescriptlang.org/) - JavaScript with syntax for types
+- [Vite](https://vitejs.dev/) - Next Generation Frontend Tooling
+- [ahooks](https://ahooks.js.org/) - React Hooks Library
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+### Prerequisites
 
-- Configure the top-level `parserOptions` property like this:
+- Node.js (LTS version recommended)
+- pnpm (v8.6.11 or later)
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+### Installation
+
+```bash
+# Install dependencies
+pnpm install
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+### Development
+
+```bash
+# Start development server
+pnpm dev
+```
+
+### Build
+
+```bash
+# Build for production
+pnpm build
+
+# Preview production build
+pnpm preview
+```
+
+### Linting
+
+```bash
+# Run ESLint
+pnpm lint
+```
+
+## Project Structure
+
+```
+├── src/              # Source files
+├── public/           # Static assets
+├── index.html        # Entry HTML file
+├── tsconfig.json     # TypeScript configuration
+├── vite.config.ts    # Vite configuration
+└── package.json      # Project dependencies and scripts
+```
+
+## Available Scripts
+
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm preview` - Preview production build
+- `pnpm lint` - Run ESLint
+
+## Development Tools
+
+This project uses several development tools to ensure code quality:
+
+- ESLint for code linting
+- TypeScript for type checking
+- Vite for fast development and building
+
+## License
+
+This project is private and not licensed for public use.
